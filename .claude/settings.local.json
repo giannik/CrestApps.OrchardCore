@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(find /c/webapps/CrestApps.OrchardCore -name *.md -type f -path *build* -o -name BUILD* -o -name PACKAGE*)",
+      "Bash(while read:*)",
+      "Bash(do echo:*)",
+      "Read(//c/webapps/CrestApps.OrchardCore/**)",
+      "Bash(done)",
+      "Bash(ls:*)",
+      "Bash(dotnet msbuild:*)",
+      "Bash(dotnet pack:*)",
+      "Bash(dotnet nuget:*)",
+      "Bash(unzip -p test-packages/Intelli.Core.3.0.0-preview.nupkg Intelli.Core.nuspec)"
+    ]
+  }
+}
