@@ -26,6 +26,7 @@ using OrchardCore.Liquid;
 using OrchardCore.Modules;
 using OrchardCore.Settings;
 
+#pragma warning disable MEAI001 // Text-to-speech APIs from Microsoft.Extensions.AI are preview and require explicit opt-in at each usage site.
 namespace CrestApps.OrchardCore.AI.Chat.Hubs;
 
 public class AIChatHub : ChatHubBase<IAIChatHubClient>
@@ -398,7 +399,6 @@ public class AIChatHub : ChatHubBase<IAIChatHubClient>
             c.TopP = 1;
             c.Temperature = 0;
             c.MaxTokens = 64; // 64 token to generate about 255 characters.
-            c.UserMarkdownInResponse = false;
 
             // Avoid using tools or any data sources when generating title to reduce the used tokens.
             c.DataSourceId = null;
@@ -520,6 +520,11 @@ public class AIChatHub : ChatHubBase<IAIChatHubClient>
             Title = profile.PromptSubject,
         };
 
+        if (handlerContext.AssistantAppearance is not null)
+        {
+            assistantMessage.Put(handlerContext.AssistantAppearance);
+        }
+
         var builder = ZString.CreateStringBuilder();
 
         var contentItemIds = new HashSet<string>();
@@ -552,6 +557,7 @@ public class AIChatHub : ChatHubBase<IAIChatHubClient>
                 ResponseId = chunk.ResponseId,
                 Content = chunk.Text,
                 References = references,
+                Appearance = handlerContext.AssistantAppearance,
             };
 
             await writer.WriteAsync(partialMessage, cancellationToken);
@@ -614,7 +620,6 @@ public class AIChatHub : ChatHubBase<IAIChatHubClient>
 
         var completionContext = await completionContextBuilder.BuildAsync(profile, c =>
         {
-            c.UserMarkdownInResponse = true;
         });
 
         var builder = ZString.CreateStringBuilder();
@@ -660,7 +665,6 @@ public class AIChatHub : ChatHubBase<IAIChatHubClient>
 
         var completionContext = await completionContextBuilder.BuildAsync(profile, c =>
         {
-            c.UserMarkdownInResponse = true;
         });
 
         var references = new Dictionary<string, AICompletionReference>();
@@ -702,6 +706,7 @@ public class AIChatHub : ChatHubBase<IAIChatHubClient>
                 Content = message.Content,
                 UserRating = message.UserRating,
                 References = message.References,
+                Appearance = message.As<AssistantMessageAppearance>(),
             })
         };
 
@@ -1102,7 +1107,7 @@ public class AIChatHub : ChatHubBase<IAIChatHubClient>
                 {
                     // Send text token to the client immediately so the user sees it right away.
                     await Clients.Caller.ReceiveConversationAssistantToken(
-                        effectiveSessionId, messageId ?? string.Empty, chunk.Content, responseId ?? string.Empty);
+                        effectiveSessionId, messageId ?? string.Empty, chunk.Content, responseId ?? string.Empty, chunk.Appearance);
 
                     sentenceBuffer.Append(chunk.Content);
 

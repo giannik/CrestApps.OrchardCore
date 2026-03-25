@@ -27,10 +27,10 @@ internal sealed class AIProfileResponseHandlerDisplayDriver : DisplayDriver<AIPr
 
     public override IDisplayResult Edit(AIProfile profile, BuildEditorContext context)
     {
-        var handlers = _handlerResolver.GetAll().ToList();
+        var handlers = _handlerResolver.GetAll();
 
         // Only show the handler selector when there is at least one non-AI handler registered.
-        if (handlers.Count <= 1)
+        if (!handlers.Any())
         {
             return null;
         }
@@ -45,7 +45,7 @@ internal sealed class AIProfileResponseHandlerDisplayDriver : DisplayDriver<AIPr
                 .Select(h => new SelectListItem(h.Name, h.Name))
                 .OrderBy(x => x.Text)
                 .ToList();
-        }).Location("Content:1#Response Handling;15");
+        }).Location("Content:20%Interactions;3");
     }
 
     public override async Task<IDisplayResult> UpdateAsync(AIProfile profile, UpdateEditorContext context)

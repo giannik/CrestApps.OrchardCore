@@ -3,12 +3,12 @@ using System.Threading.Channels;
 using Azure.Core;
 using Azure.Identity;
 using CrestApps.Azure.Core.Models;
-using CrestApps.OrchardCore.AI;
 using CrestApps.OrchardCore.AI.Models;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
+#pragma warning disable MEAI001 // Text-to-speech APIs from Microsoft.Extensions.AI are preview and require explicit opt-in at each usage site.
 namespace CrestApps.OrchardCore.OpenAI.Azure.Core.Services;
 
 /// <summary>
