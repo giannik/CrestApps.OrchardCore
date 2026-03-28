@@ -24,9 +24,10 @@ This guide walks you through every step needed to configure AI providers and dep
 9. [Creating Chat Profiles](#creating-chat-profiles)
 10. [Recipe-Based Provisioning](#recipe-based-provisioning)
 11. [Aspire-Based Local Development](#aspire-based-local-development)
-12. [End-to-End Use-Case Walkthroughs](#end-to-end-use-case-walkthroughs)
-13. [Troubleshooting](#troubleshooting)
-14. [Quick Reference](#quick-reference)
+12. [Global Configuration for All Tenants](#global-configuration-for-all-tenants)
+13. [End-to-End Use-Case Walkthroughs](#end-to-end-use-case-walkthroughs)
+14. [Troubleshooting](#troubleshooting)
+15. [Quick Reference](#quick-reference)
 
 ---
 
@@ -890,6 +891,190 @@ options.EnvironmentVariables.Add(
 options.EnvironmentVariables.Add(
     "OrchardCore__CrestApps_OrchardCore_AI_Chat_Copilot__DefaultModel", ollamaModelName);
 ```
+
+---
+
+## Global Configuration for All Tenants
+
+In a multi-tenant Orchard Core deployment, connections and deployments defined in `appsettings.json` are **automatically shared across every tenant** without any per-tenant setup. This is the recommended approach when all tenants should use the same AI provider credentials and model deployments.
+
+### How It Works
+
+The CrestApps AI system reads configuration from two sources, merged in this order:
+
+1. **`appsettings.json`** (global) — read via `IShellConfiguration` through `AIProviderOptionsConfiguration`. These settings are loaded for every tenant automatically.
+2. **Database** (per-tenant) — read via `AIProviderConnectionsOptionsConfiguration`. These are connections created through the admin UI or recipes within a specific tenant.
+
+Database records extend or override configuration-based entries. If no per-tenant records exist, all tenants share the global configuration.
+
+```csharp
+// src/Modules/CrestApps.OrchardCore.AI/Services/AIProviderOptionsConfiguration.cs
+
+public void Configure(AIProviderOptions options)
+{
+    // Reads from OrchardCore:CrestApps_AI:Providers for the current tenant's shell
+    var providerSettings = _shellConfiguration.GetSection("CrestApps_AI:Providers");
+    // ...builds connections and deployment entries from configuration
+}
+```
+
+The `ConfigurationAIDeploymentStore` (in `src/Core/CrestApps.OrchardCore.AI.Core/Services/ConfigurationAIDeploymentStore.cs`) merges configuration-sourced deployments into every read operation. Deployments defined in `appsettings.json` are read-only and available to all tenants alongside any tenant-specific deployments created via the admin UI.
+
+### Example: Shared OpenAI Setup for All Tenants
+
+Add this to the root `appsettings.json` (in `src/Startup/CrestApps.OrchardCore.Cms.Web/appsettings.json`):
+
+```json
+{
+  "OrchardCore": {
+    "CrestApps_AI": {
+      "DefaultParameters": {
+        "Temperature": 0.7,
+        "MaxOutputTokens": 2048,
+        "PastMessagesCount": 10
+      },
+      "Providers": {
+        "OpenAI": {
+          "DefaultConnectionName": "shared-openai",
+          "Connections": {
+            "shared-openai": {
+              "ApiKey": "sk-your-organization-api-key",
+              "Deployments": [
+                { "Name": "gpt-4o", "Type": "Chat", "IsDefault": true },
+                { "Name": "gpt-4o-mini", "Type": "Utility", "IsDefault": true },
+                { "Name": "text-embedding-3-large", "Type": "Embedding", "IsDefault": true },
+                { "Name": "dall-e-3", "Type": "Image", "IsDefault": true }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Every tenant in the CMS automatically has access to the `shared-openai` connection and all four deployments. No recipes, no admin UI configuration, no per-tenant setup needed.
+
+### Example: Shared Azure OpenAI with Managed Identity for All Tenants
+
+For enterprise deployments using Azure Managed Identity (no API keys):
+
+```json
+{
+  "OrchardCore": {
+    "CrestApps_AI": {
+      "Providers": {
+        "Azure": {
+          "DefaultConnectionName": "enterprise-azure",
+          "Connections": {
+            "enterprise-azure": {
+              "Endpoint": "https://your-org.openai.azure.com/",
+              "AuthenticationType": "ManagedIdentity",
+              "Deployments": [
+                { "Name": "gpt-4o", "Type": ["Chat", "Utility"], "IsDefault": true },
+                { "Name": "text-embedding-ada-002", "Type": "Embedding", "IsDefault": true }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+All tenants share the same Azure OpenAI resource and authenticate using the hosting environment's managed identity. No API keys are stored in configuration.
+
+### Example: Shared Multi-Provider Setup for All Tenants
+
+You can configure multiple providers globally. All tenants see all providers:
+
+```json
+{
+  "OrchardCore": {
+    "CrestApps_AI": {
+      "DefaultParameters": {
+        "Temperature": 0,
+        "MaxOutputTokens": 800
+      },
+      "Providers": {
+        "Azure": {
+          "DefaultConnectionName": "production",
+          "Connections": {
+            "production": {
+              "Endpoint": "https://prod.openai.azure.com/",
+              "AuthenticationType": "ApiKey",
+              "ApiKey": "azure-api-key",
+              "Deployments": [
+                { "Name": "gpt-4o", "Type": "Chat", "IsDefault": true },
+                { "Name": "gpt-4o-mini", "Type": "Utility", "IsDefault": true },
+                { "Name": "text-embedding-ada-002", "Type": "Embedding", "IsDefault": true }
+              ]
+            }
+          }
+        },
+        "OpenAI": {
+          "DefaultConnectionName": "openai-images",
+          "Connections": {
+            "openai-images": {
+              "ApiKey": "sk-openai-key",
+              "Deployments": [
+                { "Name": "dall-e-3", "Type": "Image", "IsDefault": true }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Every tenant has Azure OpenAI for chat/utility/embeddings and OpenAI for image generation, configured once in the application's `appsettings.json`.
+
+### Using Environment Variables for Global Configuration
+
+Environment variables are an alternative to `appsettings.json` for shared configuration. They use double underscores (`__`) as path separators and apply to all tenants:
+
+```bash
+# Shared OpenAI connection for all tenants
+export OrchardCore__CrestApps_AI__Providers__OpenAI__DefaultConnectionName="shared"
+export OrchardCore__CrestApps_AI__Providers__OpenAI__Connections__shared__ApiKey="sk-your-key"
+export OrchardCore__CrestApps_AI__Providers__OpenAI__Connections__shared__Deployments__0__Name="gpt-4o"
+export OrchardCore__CrestApps_AI__Providers__OpenAI__Connections__shared__Deployments__0__Type="Chat"
+export OrchardCore__CrestApps_AI__Providers__OpenAI__Connections__shared__Deployments__0__IsDefault="true"
+export OrchardCore__CrestApps_AI__Providers__OpenAI__Connections__shared__Deployments__1__Name="gpt-4o-mini"
+export OrchardCore__CrestApps_AI__Providers__OpenAI__Connections__shared__Deployments__1__Type="Utility"
+export OrchardCore__CrestApps_AI__Providers__OpenAI__Connections__shared__Deployments__1__IsDefault="true"
+
+# Shared default parameters
+export OrchardCore__CrestApps_AI__DefaultParameters__Temperature="0.7"
+export OrchardCore__CrestApps_AI__DefaultParameters__MaxOutputTokens="2048"
+```
+
+This approach works well in Docker, Kubernetes, and CI/CD environments where secrets are injected as environment variables.
+
+### Per-Tenant Overrides on Top of Global Configuration
+
+Even with a global configuration, individual tenants can override settings through:
+
+1. **Tenant-scoped `appsettings.json`** — Create `App_Data/Sites/{TenantName}/appsettings.json` to override specific settings for that tenant.
+2. **Admin UI settings** — Navigate to **Settings → Artificial Intelligence → General** to override `MaximumIterationsPerRequest`, `EnableDistributedCaching`, or `EnableOpenTelemetry` per tenant.
+3. **Admin UI connections** — Create connections through **AI → Connections** in a tenant's admin. Database connections extend the global configuration.
+4. **Default AI Deployment Settings** — Navigate to **Settings → Artificial Intelligence → Default AI Deployment Settings** to configure tenant-specific default deployments for Utility, Embedding, Image, and SpeechToText types.
+
+The merge order is: `appsettings.json` (global) → tenant `appsettings.json` → database connections → site settings overrides.
+
+### Configuration Precedence Summary
+
+| Source | Scope | Mutable | Precedence |
+|--------|-------|---------|------------|
+| `appsettings.json` | All tenants | Read-only at runtime | Base layer |
+| Environment variables | All tenants | Read-only at runtime | Overlays `appsettings.json` |
+| Tenant `appsettings.json` | Single tenant | Read-only at runtime | Overrides global settings |
+| Admin UI connections / recipes | Single tenant | Editable at runtime | Extends configuration |
+| Site settings (General AI) | Single tenant | Editable at runtime | Overrides specific defaults |
 
 ---
 
