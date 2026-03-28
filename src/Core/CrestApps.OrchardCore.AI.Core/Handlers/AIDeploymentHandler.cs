@@ -44,7 +44,7 @@ public sealed class AIDeploymentHandler : CatalogEntryHandlerBase<AIDeployment>
             context.Result.Fail(new ValidationResult(S["Deployment Name is required."], [nameof(AIDeployment.Name)]));
         }
 
-        if (!Enum.IsDefined(context.Model.Type))
+        if (!context.Model.Type.IsValidSelection())
         {
             context.Result.Fail(new ValidationResult(S["The deployment type '{0}' is not valid.", context.Model.Type], [nameof(AIDeployment.Type)]));
         }
@@ -57,17 +57,17 @@ public sealed class AIDeploymentHandler : CatalogEntryHandlerBase<AIDeployment>
             context.Result.Fail(new ValidationResult(S["Connection name is required."], [nameof(AIDeployment.ConnectionName)]));
         }
 
-        if (string.IsNullOrWhiteSpace(context.Model.ProviderName))
+        if (string.IsNullOrWhiteSpace(context.Model.ClientName))
         {
-            context.Result.Fail(new ValidationResult(S["Provider is required."], [nameof(AIDeployment.ProviderName)]));
+            context.Result.Fail(new ValidationResult(S["Provider is required."], [nameof(AIDeployment.ClientName)]));
         }
         else
         {
             if (hasConnectionName)
             {
-                if (!_providerOptions.Providers.TryGetValue(context.Model.ProviderName, out var provider))
+                if (!_providerOptions.Providers.TryGetValue(context.Model.ClientName, out var provider))
                 {
-                    context.Result.Fail(new ValidationResult(S["There are no configured connection for the provider: {0}", context.Model.ProviderName], [nameof(AIDeployment.ProviderName)]));
+                    context.Result.Fail(new ValidationResult(S["There are no configured connection for the provider: {0}", context.Model.ClientName], [nameof(AIDeployment.ClientName)]));
                 }
                 else if (!provider.Connections.TryGetValue(context.Model.ConnectionName, out var _) &&
                     !provider.Connections.Any(x => x.Value.TryGetValue("ConnectionNameAlias", out var r) &&
@@ -105,11 +105,12 @@ public sealed class AIDeploymentHandler : CatalogEntryHandlerBase<AIDeployment>
             deployment.Name = name;
         }
 
-        var providerName = data[nameof(AIDeployment.ProviderName)]?.GetValue<string>()?.Trim();
+        var clientName = data[nameof(AIDeployment.ClientName)]?.GetValue<string>()?.Trim()
+            ?? data["ProviderName"]?.GetValue<string>()?.Trim();
 
-        if (!string.IsNullOrEmpty(providerName))
+        if (!string.IsNullOrEmpty(clientName))
         {
-            deployment.Source = providerName;
+            deployment.ClientName = clientName;
         }
 
         var connectionName = data[nameof(AIDeployment.ConnectionName)]?.GetValue<string>()?.Trim();
@@ -118,14 +119,12 @@ public sealed class AIDeploymentHandler : CatalogEntryHandlerBase<AIDeployment>
         {
             deployment.ConnectionName = connectionName;
         }
-        else if (!string.IsNullOrEmpty(providerName) && _providerOptions.Providers.TryGetValue(providerName, out var provider))
+        else if (!string.IsNullOrEmpty(clientName) && _providerOptions.Providers.TryGetValue(clientName, out var provider))
         {
             deployment.ConnectionName = provider.DefaultConnectionName;
         }
 
-        var typeValue = data[nameof(AIDeployment.Type)]?.GetValue<string>();
-
-        if (!string.IsNullOrEmpty(typeValue) && Enum.TryParse<AIDeploymentType>(typeValue, ignoreCase: true, out var type))
+        if (TryGetDeploymentType(data[nameof(AIDeployment.Type)], out var type))
         {
             deployment.Type = type;
         }
@@ -146,5 +145,39 @@ public sealed class AIDeploymentHandler : CatalogEntryHandlerBase<AIDeployment>
         }
 
         return Task.CompletedTask;
+    }
+
+    private static bool TryGetDeploymentType(JsonNode typeNode, out AIDeploymentType type)
+    {
+        type = AIDeploymentType.None;
+
+        if (typeNode is null)
+        {
+            return false;
+        }
+
+        if (typeNode is JsonArray array)
+        {
+            foreach (var item in array)
+            {
+                if (item is null ||
+                    !Enum.TryParse<AIDeploymentType>(item.GetValue<string>(), ignoreCase: true, out var parsedType) ||
+                    parsedType == AIDeploymentType.None)
+                {
+                    type = AIDeploymentType.None;
+                    return false;
+                }
+
+                type |= parsedType;
+            }
+
+            return type.IsValidSelection();
+        }
+
+        var typeValue = typeNode.GetValue<string>();
+
+        return !string.IsNullOrEmpty(typeValue) &&
+            Enum.TryParse(typeValue, ignoreCase: true, out type) &&
+            type.IsValidSelection();
     }
 }
