@@ -1,4 +1,3 @@
-using CrestApps.OrchardCore.AI;
 using CrestApps.OrchardCore.AI.Chat.ViewModels;
 using CrestApps.OrchardCore.AI.Core;
 using CrestApps.OrchardCore.AI.Core.Services;
@@ -88,5 +87,5 @@ public sealed class AIProfileTemplateChatModeDisplayDriver : DisplayDriver<AIPro
     }
 
     private async Task<IEnumerable<SelectListItem>> GetAvailableVoicesAsync()
-        => await _speechVoiceMenuService.GetVoiceMenuItemsAsync(deploymentId: null);
+        => await _speechVoiceMenuService.GetVoiceMenuItemsAsync(deploymentName: null);
 }

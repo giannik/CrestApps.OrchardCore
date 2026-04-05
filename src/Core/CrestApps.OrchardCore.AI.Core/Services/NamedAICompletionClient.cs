@@ -96,28 +96,26 @@ public abstract class NamedAICompletionClient : AICompletionServiceBase, IAIComp
             throw new ArgumentException($"Provider '{ProviderName}' not found.");
         }
 
-        var connectionName = GetDefaultConnectionName(provider, context.ConnectionName);
-
         // Use the deployment resolver with fallback to legacy dictionary-based resolution.
         var (deploymentName, resolvedConnectionName) = await ResolveDeploymentAsync(
             AIDeploymentType.Chat,
             provider,
             ProviderName,
-            connectionName,
-            deploymentId: context.ChatDeploymentId);
+            context.ConnectionName,
+            deploymentName: context.ChatDeploymentName);
 
-        connectionName = resolvedConnectionName;
+        var connectionName = resolvedConnectionName;
 
         if (string.IsNullOrEmpty(connectionName))
         {
-            Logger.LogWarning("Unable to chat. Unable to find a connection '{ConnectionName}' or the default connection", context.ConnectionName);
+            Logger.LogWarning("Unable to chat. Unable to find a connection '{ConnectionName}' and no fallback connection could be resolved.", context.ConnectionName);
 
             return null;
         }
 
         if (string.IsNullOrEmpty(deploymentName))
         {
-            Logger.LogWarning("Unable to chat. Unable to find a deployment id '{DeploymentId}' or the default deployment", context.ChatDeploymentId);
+            Logger.LogWarning("Unable to chat. Unable to find a deployment name '{DeploymentName}' or the default deployment", context.ChatDeploymentName);
 
             return null;
         }
@@ -154,7 +152,7 @@ public abstract class NamedAICompletionClient : AICompletionServiceBase, IAIComp
             throw new ArgumentException($"Provider '{ProviderName}' not found.");
         }
 
-        var connectionName = GetDefaultConnectionName(provider, context.ConnectionName);
+        var connectionName = context.ConnectionName;
 
         // Use the deployment resolver with fallback to legacy dictionary-based resolution.
         var (deploymentName, resolvedConnectionName) = await ResolveDeploymentAsync(
@@ -162,20 +160,20 @@ public abstract class NamedAICompletionClient : AICompletionServiceBase, IAIComp
             provider,
             ProviderName,
             connectionName,
-            deploymentId: context.ChatDeploymentId);
+            deploymentName: context.ChatDeploymentName);
 
         connectionName = resolvedConnectionName;
 
         if (string.IsNullOrEmpty(connectionName))
         {
-            Logger.LogWarning("Unable to chat. Unable to find a connection '{ConnectionName}' or the default connection", context.ConnectionName);
+            Logger.LogWarning("Unable to chat. Unable to find a connection '{ConnectionName}' and no fallback connection could be resolved.", context.ConnectionName);
 
             yield break;
         }
 
         if (string.IsNullOrEmpty(deploymentName))
         {
-            Logger.LogWarning("Unable to chat. Unable to find a deployment id '{DeploymentId}' or the default deployment", context.ChatDeploymentId);
+            Logger.LogWarning("Unable to chat. Unable to find a deployment name '{DeploymentName}' or the default deployment", context.ChatDeploymentName);
 
             yield break;
         }

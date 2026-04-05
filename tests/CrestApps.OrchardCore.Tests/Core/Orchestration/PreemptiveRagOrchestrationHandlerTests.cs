@@ -7,7 +7,6 @@ using CrestApps.OrchardCore.AI.Core.Models;
 using CrestApps.OrchardCore.AI.Core.Services;
 using CrestApps.OrchardCore.AI.Models;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Moq;
 using OrchardCore.Entities;
 using OrchardCore.Settings;
@@ -223,10 +222,11 @@ public sealed class PreemptiveRagOrchestrationHandlerTests
         bool enablePreemptiveRag)
     {
         var templateService = new FakeAITemplateService();
+        var deploymentManager = new Mock<IAIDeploymentManager>();
         var queryProvider = new PreemptiveSearchQueryProvider(
             new NullAIClientFactory(),
+            deploymentManager.Object,
             templateService,
-            Options.Create(new AIProviderOptions()),
             NullLogger<PreemptiveSearchQueryProvider>.Instance);
 
         var siteMock = new Mock<ISiteService>();

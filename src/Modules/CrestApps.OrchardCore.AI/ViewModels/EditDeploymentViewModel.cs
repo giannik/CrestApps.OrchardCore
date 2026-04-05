@@ -1,4 +1,3 @@
-using CrestApps.OrchardCore.AI.Models;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -7,6 +6,8 @@ namespace CrestApps.OrchardCore.AI.ViewModels;
 public class EditDeploymentViewModel
 {
     public string Name { get; set; }
+
+    public string ModelName { get; set; }
 
     public string ConnectionName { get; set; }
 

@@ -1,6 +1,5 @@
 using System.Text.Json.Nodes;
 using CrestApps.OrchardCore.AI.Deployments.Steps;
-using CrestApps.OrchardCore.AI.Models;
 using OrchardCore.Deployment;
 
 namespace CrestApps.OrchardCore.AI.Deployments.Sources;
@@ -39,7 +38,8 @@ internal sealed class AIProfileDeploymentSource : DeploymentSourceBase<AIProfile
                 { "WelcomeMessage", profile.WelcomeMessage },
                 { "Type", profile.Type.ToString() },
                 { "PromptTemplate", profile.PromptTemplate },
-                { "ChatDeploymentId", profile.ChatDeploymentId },
+                { "ChatDeploymentName", profile.ChatDeploymentName },
+                { "UtilityDeploymentName", profile.UtilityDeploymentName },
                 { "CreatedUtc", profile.CreatedUtc },
                 { "OwnerId", profile.OwnerId },
                 { "Author", profile.Author },

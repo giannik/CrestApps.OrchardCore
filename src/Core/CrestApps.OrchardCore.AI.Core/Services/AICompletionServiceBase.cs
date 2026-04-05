@@ -26,16 +26,6 @@ public abstract class AICompletionServiceBase
         DeploymentResolver = deploymentResolver;
     }
 
-    protected virtual string GetDefaultConnectionName(AIProvider provider, string connectionName)
-    {
-        if (!string.IsNullOrEmpty(connectionName))
-        {
-            return connectionName;
-        }
-
-        return provider.DefaultConnectionName;
-    }
-
     protected virtual string GetDefaultDeploymentName(AIProvider provider, string connectionName)
     {
         if (connectionName is not null && provider.Connections.TryGetValue(connectionName, out var connection))
@@ -64,19 +54,19 @@ public abstract class AICompletionServiceBase
         AIProvider provider,
         string providerName,
         string connectionName,
-        string deploymentId = null)
+        string deploymentName = null)
     {
         if (DeploymentResolver != null)
         {
             var deployment = await DeploymentResolver.ResolveOrDefaultAsync(
                 type,
-                deploymentId: deploymentId,
+                deploymentName: deploymentName,
                 clientName: providerName,
                 connectionName: connectionName);
 
             if (deployment != null)
             {
-                return (deployment.Name, deployment.ConnectionName ?? connectionName);
+                return (deployment.ModelName, deployment.ConnectionName ?? connectionName);
             }
         }
 
